@@ -36,6 +36,10 @@ The environment was done in a docker image, so you only need to run the docker i
 | -------------         |:-------------:| 
 | `make build-image`    | builds the image node and firebase tools | 
 | `make run-image`      | runs the image with all dependencies in it  |
+| `fireabse login`      | login on google firebase |
+| `firebase serve`      | runs API link locally  |
+| `firebase deploy`     | runs API through google servers |
+You'll also need to create a .env file (you can use .env.example as an example)
 
 # Useful commands
 

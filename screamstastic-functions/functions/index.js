@@ -1,3 +1,4 @@
+require('dotenv').config();
 const functions = require("firebase-functions");
 const admin = require('firebase-admin');
 const { user } = require("firebase-functions/v1/auth");
@@ -6,13 +7,13 @@ const app = require('express')();
 admin.initializeApp();
 
 const firebaseConfig = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: "",
-  measurementId: ""
+  apiKey: process.env.APIKEY,
+  authDomain: process.env.AUTHDOMAIN,
+  projectId: process.env.PROJECTID,
+  storageBucket: process.env.STORAGEBUCKET,
+  messagingSenderId: process.env.MESSAGINGSENDERID,
+  appId: process.env.APPID,
+  measurementId: process.env.MEASUREMENTID
 };
 
 
