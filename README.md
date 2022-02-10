@@ -15,6 +15,7 @@ Social Media App
 ### Front-end
 
 * React -
+    * Busboy *file uploader*
     * Material UI - *Google Material Design Standars, like a CSS framework*
     * Express - *Cloud Functions*
     * React Redux \ Redux Dev Tools - *Broser tools* *Manage data between * React Componens*
