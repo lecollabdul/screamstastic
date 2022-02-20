@@ -1,7 +1,4 @@
-const { json } = require('express');
-const e = require('express');
 const { db } = require('../util/admin');
-
 
 exports.getAllScreams = (req, res) => {
   db.collection('screams')
@@ -9,12 +6,15 @@ exports.getAllScreams = (req, res) => {
     .get()
     .then(data => {
       let screams = [];
-      data.forEach(doc => {
+      data.forEach((doc) => {
         screams.push({
           screamId: doc.id,
           body: doc.data().body,
           userHandle: doc.data().userHandle,
-          createdAt: doc.data().createdAt
+          createdAt: doc.data().createdAt,
+          commentCount: doc.data().commentCount,
+          likeCount: doc.data().likeCount,
+          userImage: doc.data().userImage
         });
       })
       return res.json(screams);
@@ -73,7 +73,7 @@ exports.getScream = (req, res) => {
 };
 // Comment on a scream
 exports.commentOnScream = (req, res) => {
-  if(req.body.body.trim() === '') return res.status(400).json({ error: 'Must not be empty'});
+  if(req.body.body.trim() === '') return res.status(400).json({ comment: 'Must not be empty'});
 
   const newComment = {
     body: req.body.body,
@@ -121,14 +121,14 @@ exports.likeScream = (req, res) => {
         res.status(404).json({ errpor: 'Scream not found'});
       }
     })
-    .then(data => {
+    .then((data) => {
       if(data.empty){
         return db.collection('likes').add({
           screamId: req.params.screamId,
           userHandle: req.user.handle
         })
         .then(() => {
-          screamData.likeCount++
+          screamData.likeCount++;
           return screamDocument.update({ likeCount: screamData.likeCount });
         })
         .then(() => {
