@@ -228,6 +228,8 @@ exports.uploadImage = (req, res) => {
   })
   busboy.end(req.rawBody);
 };
+
+// There is minor loophole, any user can mark any other user's notifications as read.
 exports.markNotificationsRead = (req, res) => {
   let batch = db.batch();
   req.body.forEach(notificationId =>{

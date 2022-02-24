@@ -42,64 +42,234 @@ app.post('/notifications', markNotificationsRead);
 exports.api = functions.https.onRequest(app);
 
 // DATABASE TRIGGER FUNCTIONS
-exports.CreateNotificationOnLike = functions
-    .firestore
-    .document('likes/{id}')
-    .onCreate(async (snapshot) => {
-        try {
-            const scream = await db.doc(`/screams/${snapshot.data().screamId}`).get()
-            if(scream.exists && scream.data().userHandle !== snapshot.data().userHandle){
-                return await db.doc(`notifications/${snapshot.id}`).set({
-                    createdAt: new Date().toISOString(),
-                    recipient: scream.data().userHandle,
-                    sender: snapshot.data().userHandle,
-                    type: 'like',
-                    read: false,
-                    screamId: scream.id
-                })
-            }
-        } catch (err) {
-            console.error(err)
-        }
-    })
 
-exports.deleteNotificationsOnUnlike = functions
-    .firestore
-    .document('likes/{id}')
-    .onDelete(async snapshot => {
-        try {
-            return await db.doc(`notifications/${snapshot.id}`).delete();
-        } catch (err) {
-            console.error(err)
+exports.createNotificationOnLike = functions
+  .firestore.document('likes/{id}')
+  .onCreate((snapshot) => {
+    return db
+      .doc(`/screams/${snapshot.data().screamId}`)
+      .get()
+      .then((doc) => {
+        if (
+          doc.exists &&
+          doc.data().userHandle !== snapshot.data().userHandle
+        ) {
+          return db.doc(`/notifications/${snapshot.id}`).set({
+            createdAt: new Date().toISOString(),
+            recipient: doc.data().userHandle,
+            sender: snapshot.data().userHandle,
+            type: 'like',
+            read: false,
+            screamId: doc.id
+          });
         }
-    })
-
+      })
+      .catch((err) => console.error(err));
+  });
+exports.deleteNotificationOnUnLike = functions
+  .firestore.document('likes/{id}')
+  .onDelete((snapshot) => {
+    return db
+      .doc(`/notifications/${snapshot.id}`)
+      .delete()
+      .catch((err) => {
+        console.error(err);
+        return;
+      });
+  });
 exports.createNotificationOnComment = functions
-    .firestore
-    .document('comments/{id}')
-    .onCreate(async snapshot => {
-        try {
-            const scream = await db.doc(`screams/${snapshot.data().screamId}`).get()
-            if(scream.exists && scream.data().userHandle !== snapshot.data().userHandle){
-                return await db.doc(`notifications/${snapshot.id}`).set({
-                    createdAt: new Date().toISOString(),
-                    recipient: scream.data().userHandle,
-                    sender: snapshot.data().userHandle,
-                    type: 'comment',
-                    read: false,
-                    screamId: scream.id
-                })
-            };
-        } catch (err) {
-            console.error(err)
+  .firestore.document('comments/{id}')
+  .onCreate((snapshot) => {
+    return db
+      .doc(`/screams/${snapshot.data().screamId}`)
+      .get()
+      .then((doc) => {
+        if (
+          doc.exists &&
+          doc.data().userHandle !== snapshot.data().userHandle
+        ) {
+          return db.doc(`/notifications/${snapshot.id}`).set({
+            createdAt: new Date().toISOString(),
+            recipient: doc.data().userHandle,
+            sender: snapshot.data().userHandle,
+            type: 'comment',
+            read: false,
+            screamId: doc.id
+          });
         }
-    });
+      })
+      .catch((err) => {
+        console.error(err);
+        return;
+      });
+  });
 
+exports.onUserImageChange = functions
+  .firestore.document('/users/{userId}')
+  .onUpdate((change) => {
+    console.log(change.before.data());
+    console.log(change.after.data());
+    if (change.before.data().imageUrl !== change.after.data().imageUrl) {
+      console.log('image has changed');
+      const batch = db.batch();
+      return db
+        .collection('screams')
+        .where('userHandle', '==', change.before.data().handle)
+        .get()
+        .then((data) => {
+          data.forEach((doc) => {
+            const scream = db.doc(`/screams/${doc.id}`);
+            batch.update(scream, { userImage: change.after.data().imageUrl });
+          });
+          return batch.commit();
+        });
+    } else return true;
+  });
+
+exports.onScreamDelete = functions
+  .firestore.document('/screams/{screamId}')
+  .onDelete((snapshot, context) => {
+    const screamId = context.params.screamId;
+    const batch = db.batch();
+    return db
+      .collection('comments')
+      .where('screamId', '==', screamId)
+      .get()
+      .then((data) => {
+        data.forEach((doc) => {
+          batch.delete(db.doc(`/comments/${doc.id}`));
+        });
+        return db
+          .collection('likes')
+          .where('screamId', '==', screamId)
+          .get();
+      })
+      .then((data) => {
+        data.forEach((doc) => {
+          batch.delete(db.doc(`/likes/${doc.id}`));
+        });
+        return db
+          .collection('notifications')
+          .where('screamId', '==', screamId)
+          .get();
+      })
+      .then((data) => {
+        data.forEach((doc) => {
+          batch.delete(db.doc(`/notifications/${doc.id}`));
+        });
+        return batch.commit();
+      })
+      .catch((err) => console.error(err));
+  });
+
+
+// exports.CreateNotificationOnLike = functions
+//     .firestore
+//     .document('likes/{id}')
+//     .onCreate(async (snapshot) => {
+//         try {
+//             const scream = await db.doc(`/screams/${snapshot.data().screamId}`).get()
+//             if(scream.exists && scream.data().userHandle !== snapshot.data().userHandle){
+//                 return await db.doc(`notifications/${snapshot.id}`).set({
+//                     createdAt: new Date().toISOString(),
+//                     recipient: scream.data().userHandle,
+//                     sender: snapshot.data().userHandle,
+//                     type: 'like',
+//                     read: false,
+//                     screamId: scream.id
+//                 })
+//             }
+//         } catch (err) {
+//             console.error(err)
+//         }
+//     })
+
+// exports.deleteNotificationsOnUnlike = functions
+//     .firestore
+//     .document('likes/{id}')
+//     .onDelete(async snapshot => {
+//         try {
+//             return await db.doc(`notifications/${snapshot.id}`).delete();
+//         } catch (err) {
+//             console.error(err)
+//         }
+//     })
+
+// exports.createNotificationOnComment = functions
+//     .firestore
+//     .document('comments/{id}')
+//     .onCreate(async snapshot => {
+//         try {
+//             const scream = await db.doc(`screams/${snapshot.data().screamId}`).get()
+//             if(scream.exists && scream.data().userHandle !== snapshot.data().userHandle){
+//                 return await db.doc(`notifications/${snapshot.id}`).set({
+//                     createdAt: new Date().toISOString(),
+//                     recipient: scream.data().userHandle,
+//                     sender: snapshot.data().userHandle,
+//                     type: 'comment',
+//                     read: false,
+//                     screamId: scream.id
+//                 })
+//             };
+//         } catch (err) {
+//             console.error(err)
+//         }
+//     });
+// // In onUserImageChange function we should also change images in comments collection
+// exports.onUserImageChange = functions.firestore.document('/users/{userId}')
+//     .onUpdate((change) => {
+//         console.log(change.before.data());
+//         console.log(change.after.data());
+//         if(change.before.data().imageUrl !== change.after.data().imageUrl){
+//             console.log('Image has changed');
+//             const batch = db.batch();
+//             return db.collection('screams').where('userHandle', '==', change.before.data().handle).get()
+//                 .then((data) => {
+//                     data.forEach(doc => {
+//                         const scream = db.doc(`/screams/${doc.id}`);
+//                         batch.update(scream, { userImage: change.after.data().imageUrl });
+//                         return db.collection('comments').where('userHandle', '==', change.before.data().handle).get()
+//                     })
+//                 })
+//                 .then((data) => {
+//                     data.forEach(doc => {
+//                         const comment = db.doc(`/comments/${doc.id}`);
+//                         batch.update(comment, { userImage: change.after.data().imageUrl });
+//                     })
+//                     return batch.commit();
+//                 });
+//         } else return true;
+//     });
+
+// exports.onScreamDelete = functions.firestore.document('/screams/{screamID}')
+//     .onDelete(async (snapshot, context) => {
+//         const screamId = context.params.screamId;
+//         const batch = db.batch();
+//         try {
+//             const data = await db.collection('comments').where('screamId', '==', screamId).get();
+//             data.forEach((doc) => {
+//                 batch.delete(db.doc(`/comments/${doc.id}`));
+//             });
+//             const data_1 = await db.collection('likes').where('screamId', '==', screamId).get();
+//             data_1.forEach(doc_1 => {
+//                 batch.delete(db.doc(`/likes/${doc_1.id}`));
+//             });
+//             const data_2 = await db.collection('notifications').where('screamId', '==', screamId).get();
+//             data_2.forEach(doc_2 => {
+//                 batch.delete(db.doc(`/notifications/${doc_2.id}`));
+//             });
+//             return await batch.commit();
+//         } catch (err) {
+//             return console.log(err);
+//         }
+//     });
+
+//#######################################################    
+//#######################################################
+    
 // exports.createNotificationOnLike = functions.firestore.document('likes/{id}')
-//   .onCreate( async (snapshot) => {
-
-//     try {
-//       return await db.doc(`/screams/${snapshot.data().screamId}`).get()
+//   .onCreate((snapshot) => {
+//       return db.doc(`/screams/${snapshot.data().screamId}`).get()
 //         .then(doc => {
 //           if(doc.exist  && doc.data().userHandle !== snapshot.data().userHandle){
 //             return db.doc(`/notifications/${snapshot.id}`).set({
@@ -114,29 +284,21 @@ exports.createNotificationOnComment = functions
 //         })
 //         .catch((err) => 
 //           console.error(err));
-//     }catch(err){
-//       console.error(err);
-//     }
 //   });
 
 // exports.createNotificationOnUnLike = functions.firestore.document('likes/{id}')
-// .onDelete( async (snapshot) => {
-//   try{
-//     return await db.doc(`/notifications/${snapshot.id}`)
+// .onDelete((snapshot) => {
+//     return db.doc(`/notifications/${snapshot.id}`)
 //     .delete()
 //     .catch((err) => {
 //       console.error(err);
 //       return;
 //     });
-//   } catch(err){
-//     console.error(err);
-//   }
 // });
 
 // exports.createNotificationOnComment = functions.firestore.document('comments/{id}')
-//   .onCreate( async (snapshot) => {
-//     try{
-//       return await db.doc(`/screams/${snapshot.data().screamId}`).get()
+//   .onCreate((snapshot) => {
+//       return db.doc(`/screams/${snapshot.data().screamId}`).get()
 //       .then((doc) => {
 //         if(doc.exist && doc.data().userHandle !== snapshot.data().userHandle){
 //           return db.doc(`/notifications/${snapshot.id}`).set({
@@ -153,7 +315,4 @@ exports.createNotificationOnComment = functions
 //         console.error(err);
 //         return;
 //       });
-//     }catch(err){
-//       console.error(err);
-//     }
 //   });
