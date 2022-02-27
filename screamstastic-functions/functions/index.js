@@ -120,7 +120,16 @@ exports.onUserImageChange = functions
           data.forEach((doc) => {
             const scream = db.doc(`/screams/${doc.id}`);
             batch.update(scream, { userImage: change.after.data().imageUrl });
-          });
+            return db
+            .collection('comments')
+            .where('userHandle', '==', change.before.data().handle);
+          })
+          .then((data) => {
+            data.forEach((doc) => {
+              const scream = db.doc(`/comments/${doc.id}`);
+              batch.update(scream, { userImage: change.after.data().imageUrl });
+            });
+          })
           return batch.commit();
         });
     } else return true;
